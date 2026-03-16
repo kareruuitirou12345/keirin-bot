@@ -1,9 +1,7 @@
 import requests
-import os
 
-WEBHOOK = os.environ["DISCORD_WEBHOOK"]
+url = "https://keirin-station.com/keirindb/race/member/31/20260316/5/"
+res = requests.get(url)
 
-requests.post(
-    WEBHOOK,
-    json={"content": "テスト通知"}
-)
+print(res.status_code)
+print(res.text[:2000])
