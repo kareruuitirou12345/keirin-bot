@@ -2,47 +2,101 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
-WEBHOOK = os.environ["DISCORD_WEBHOOK"]
+# GitHub Secretsに登録したWebhook
+DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 
-def scrape():
 
-    url = "https://example.com"
+def scrape_races():
+
+    url = "https://www.chariloto.com/keirin/athletes/2026-03-16/31/7"  # 出走表URL
 
     res = requests.get(url)
+    res.encoding = "utf-8"
+
     soup = BeautifulSoup(res.text, "html.parser")
 
     races = []
 
-    for r in soup.select(".race"):
+    # 例：レースごとのブロック
+    race_blocks = soup.select(".race")
 
-        name = r.select_one(".race-name").text
+    for race in race_blocks:
 
-        races.append(name)
+        race_name = race.select_one(".race-title").text.strip()
+
+        riders = race.select(".rider")
+
+        scores = []
+        styles = []
+
+        for r in riders:
+
+            score = float(r.select_one(".score").text)
+            style = r.select_one(".style").text
+
+            scores.append(score)
+            styles.append(style)
+
+        races.append({
+            "name": race_name,
+            "scores": scores,
+            "styles": styles
+        })
 
     return races
 
 
-def send_discord(msg):
+def is_chaos_race(race):
+
+    scores = race["scores"]
+    styles = race["styles"]
+
+    score_diff = max(scores) - min(scores)
+
+    escape_count = styles.count("逃")
+
+    score = 0
+
+    # 得点差小
+    if score_diff <= 3:
+        score += 3
+
+    # 先行不在
+    if escape_count == 0:
+        score += 4
+
+    return score >= 5
+
+
+def send_discord(message):
 
     requests.post(
-        WEBHOOK,
-        json={"content": msg}
+        DISCORD_WEBHOOK,
+        json={"content": message}
     )
 
 
 def main():
 
-    races = scrape()
+    races = scrape_races()
 
-    if not races:
+    chaos_races = []
+
+    for race in races:
+
+        if is_chaos_race(race):
+            chaos_races.append(race["name"])
+
+    if not chaos_races:
+        print("荒れレースなし")
         return
 
-    message = "荒れそうなレース\n"
+    msg = "🔥荒れそうなレース\n"
 
-    for r in races:
-        message += f"\n{r}"
+    for r in chaos_races:
+        msg += f"\n{r}"
 
-    send_discord(message)
+    send_discord(msg)
 
 
 if __name__ == "__main__":
