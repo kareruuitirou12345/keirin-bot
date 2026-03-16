@@ -1,27 +1,66 @@
 import requests
 from bs4 import BeautifulSoup
+import os
 
-url = "https://keirin.netkeiba.com/race/entry/?race_id=202603163108"
+WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 
-session = requests.Session()
+RACE_ID = "202603163108"
+
+url = f"https://keirin.netkeiba.com/race/entry/?race_id={RACE_ID}"
 
 headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language": "ja-JP,ja;q=0.9,en-US;q=0.8",
-    "Connection": "keep-alive",
+    "User-Agent": "Mozilla/5.0",
     "Referer": "https://keirin.netkeiba.com/"
 }
 
-session.headers.update(headers)
+def scrape():
 
-res = session.get(url)
+    res = requests.get(url, headers=headers)
 
-print(res.status_code)
-print(res.text[:1000])
+    soup = BeautifulSoup(res.text, "html.parser")
 
-soup = BeautifulSoup(res.text, "html.parser")
+    rows = soup.select("table tr")
 
-rows = soup.select("table tr")
+    riders = []
 
-print("row count:", len(rows))
+    for r in rows:
+
+        cols = r.find_all("td")
+
+        if len(cols) > 6:
+
+            number = cols[1].text.strip()
+            name = cols[3].text.strip()
+            score = cols[6].text.strip()
+
+            riders.append((number, name, score))
+
+    return riders
+
+
+def send_discord(riders):
+
+    msg = "🚴 出走表\n"
+
+    for n, name, score in riders:
+        msg += f"\n{n} {name} ({score})"
+
+    requests.post(
+        WEBHOOK,
+        json={"content": msg}
+    )
+
+
+def main():
+
+    riders = scrape()
+
+    if not riders:
+        print("no data")
+        return
+
+    send_discord(riders)
+
+
+if __name__ == "__main__":
+    main()
