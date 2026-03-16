@@ -8,7 +8,7 @@ DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 
 def scrape_races():
 
-    url = "https://www.chariloto.com/keirin/athletes/2026-03-16/31/7"  # 出走表URL
+    url = "https://keirin-station.com/keirindb/race/member/31/20260316/5/"  # 出走表URL
 
     res = requests.get(url)
     res.encoding = "utf-8"
