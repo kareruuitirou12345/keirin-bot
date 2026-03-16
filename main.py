@@ -4,48 +4,38 @@ import os
 
 WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 
-# レースID
 RACE_ID = "202603163108"
 
-URL = f"https://keirin.netkeiba.com/race/entry/?race_id={RACE_ID}"
+url = f"https://keirin.netkeiba.com/race/entry/?race_id={RACE_ID}"
 
-HEADERS = {
+headers = {
     "User-Agent": "Mozilla/5.0",
     "Referer": "https://keirin.netkeiba.com/"
 }
 
 
-def scrape_race():
+def scrape():
 
-    res = requests.get(URL, headers=HEADERS)
+    res = requests.get(url, headers=headers)
 
     soup = BeautifulSoup(res.text, "html.parser")
 
-    rows = soup.select("table.RaceTable01 tbody tr")
+    rows = soup.select("table.RaceTable01 tr")
 
     riders = []
 
     for r in rows:
 
-        number = r.select_one(".Umaban")
-        name = r.select_one(".Name")
-        score = r.select_one(".Score")
+        cols = r.find_all("td")
 
-        if not number or not name:
+        if len(cols) < 7:
             continue
 
-        number = number.text.strip()
-        name = name.text.strip()
+        number = cols[1].text.strip()
+        name = cols[3].text.strip()
+        score = cols[6].text.strip()
 
-        score_text = "-"
-        if score:
-            score_text = score.text.strip()
-
-        riders.append({
-            "number": number,
-            "name": name,
-            "score": score_text
-        })
+        riders.append((number, name, score))
 
     return riders
 
@@ -54,8 +44,8 @@ def send_discord(riders):
 
     msg = "🚴 出走表\n"
 
-    for r in riders:
-        msg += f"\n{r['number']} {r['name']} ({r['score']})"
+    for n, name, score in riders:
+        msg += f"\n{n} {name} ({score})"
 
     requests.post(
         WEBHOOK,
@@ -65,9 +55,11 @@ def send_discord(riders):
 
 def main():
 
-    riders = scrape_race()
+    riders = scrape()
 
-    if not riders:
+    print("取得人数:", len(riders))
+
+    if len(riders) == 0:
         print("データ取得失敗")
         return
 
