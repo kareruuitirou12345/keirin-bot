@@ -22,12 +22,38 @@ def scrape():
 
     res = session.get(URL)
 
-    print("status:", res.status_code)
-    print("length:", len(res.text))
-
     soup = BeautifulSoup(res.text, "html.parser")
 
     riders = []
+    seen = set()  # ←追加（重複チェック）
+
+    for r in soup.find_all("tr"):
+
+        text = r.get_text(" ", strip=True)
+
+        import re
+        score_match = re.search(r"\d{2}\.\d{2}", text)
+        if not score_match:
+            continue
+
+        score = score_match.group()
+
+        name_match = re.search(r"[一-龥]{2,4}", text)
+        if not name_match:
+            continue
+
+        name = name_match.group()
+
+        key = (name, score)
+
+        # 👇重複排除
+        if key in seen:
+            continue
+
+        seen.add(key)
+        riders.append(key)
+
+    return riders
 
     # 👇 全行を見る（決め打ちしない）
     for r in soup.find_all("tr"):
