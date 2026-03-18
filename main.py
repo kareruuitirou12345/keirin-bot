@@ -8,14 +8,21 @@ RACE_ID = "202603187403"
 URL = f"https://keirin.netkeiba.com/race/entry/?race_id={RACE_ID}"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0",
-    "Referer": "https://keirin.netkeiba.com/"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Referer": "https://keirin.netkeiba.com/",
+    "Accept-Language": "ja-JP,ja;q=0.9"
 }
 
 
 def scrape():
 
-    res = requests.get(URL, headers=HEADERS)
+    session = requests.Session()
+    session.headers.update(HEADERS)
+
+    res = session.get(URL)
+
+    print("status:", res.status_code)
+    print(res.text[:500])  # ←デバッグ
 
     soup = BeautifulSoup(res.text, "html.parser")
 
@@ -29,7 +36,6 @@ def scrape():
         name = r.select_one(".Name")
         score = r.select_one(".Score")
 
-        # ←ここが重要（cols使わない）
         if not number or not name:
             continue
 
@@ -49,10 +55,7 @@ def send_discord(riders):
     for n, nm, sc in riders:
         msg += f"\n{n} {nm} ({sc})"
 
-    requests.post(
-        WEBHOOK,
-        json={"content": msg}
-    )
+    requests.post(WEBHOOK, json={"content": msg})
 
 
 def main():
