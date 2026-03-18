@@ -22,38 +22,58 @@ def scrape():
     res = session.get(URL)
 
     print("status:", res.status_code)
-    print(res.text[:500])  # ←デバッグ
 
     soup = BeautifulSoup(res.text, "html.parser")
 
-    rows = soup.select("table.RaceTable01 tr")
-
     riders = []
 
-    for r in rows:
+    # 👇全trを走査して「列数」で判定（これが一番安定）
+    for r in soup.select("tr"):
 
-        number = r.select_one(".Umaban")
-        name = r.select_one(".Name")
-        score = r.select_one(".Score")
+        cols = [c.text.strip() for c in r.find_all("td")]
 
-        if not number or not name:
-            continue
+        # 👇この条件が重要（画像の表）
+        if len(cols) >= 13:
 
-        n = number.text.strip()
-        nm = name.text.strip()
-        sc = score.text.strip() if score else "-"
+            try:
+                score = cols[0]          # 競走得点
+                style = cols[1]          # 脚質（逃・追・両）
+                s_count = cols[2]        # S
+                b_count = cols[3]        # B
+                nige = cols[4]           # 逃げ
+                makuri = cols[5]         # まくり
+                sashi = cols[6]          # 差し
 
-        riders.append((n, nm, sc))
+                win = cols[10]           # 勝率
+                rentai = cols[11]        # 2連対率
+                sanrentai = cols[12]     # 3連対率
+
+                riders.append({
+                    "score": score,
+                    "style": style,
+                    "win": win,
+                    "2rentai": rentai,
+                    "3rentai": sanrentai
+                })
+
+            except Exception as e:
+                print("skip:", e)
 
     return riders
 
 
 def send_discord(riders):
 
-    msg = "🚴 出走表\n"
+    msg = "🔥 成績テーブル\n"
 
-    for n, nm, sc in riders:
-        msg += f"\n{n} {nm} ({sc})"
+    for r in riders:
+        msg += (
+            f"\n得点:{r['score']}"
+            f" 脚質:{r['style']}"
+            f" 勝率:{r['win']}"
+            f" 2連:{r['2rentai']}"
+            f" 3連:{r['3rentai']}"
+        )
 
     requests.post(WEBHOOK, json={"content": msg})
 
