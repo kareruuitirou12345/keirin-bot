@@ -25,21 +25,30 @@ def scrape():
 
     riders = []
 
-    # 👇 出走表テーブルから取得（名前と得点）
-    rows = soup.select("table.RaceTable01 tr")
+    rows = soup.select("table tr")
 
     for r in rows:
 
-        name = r.select_one(".Name")
-        score = r.select_one(".Score")
+        cols = r.find_all("td")
 
-        if not name or not score:
-            continue
+        # 👇このページの構造に合わせる
+        if len(cols) >= 10:
 
-        name = name.text.strip()
-        score = score.text.strip()
+            try:
+                # 名前（aタグ）
+                name_tag = cols[3].find("a")
+                if not name_tag:
+                    continue
 
-        riders.append((name, score))
+                name = name_tag.text.strip()
+
+                # 競走得点（固定位置）
+                score = cols[4].text.strip()
+
+                riders.append((name, score))
+
+            except:
+                continue
 
     return riders
 
