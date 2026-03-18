@@ -22,62 +22,48 @@ def scrape():
 
     res = session.get(URL)
 
+    print("status:", res.status_code)
+    print("html length:", len(res.text))
+
     soup = BeautifulSoup(res.text, "html.parser")
 
     riders = []
-    seen = set()  # ←追加（重複チェック）
+    seen = set()
 
-    for r in soup.find_all("tr"):
+    # 👇 全行を走査
+    for row in soup.find_all("tr"):
 
-        text = r.get_text(" ", strip=True)
+        cols = row.find_all("td")
 
-        import re
-        score_match = re.search(r"\d{2}\.\d{2}", text)
-        if not score_match:
+        if len(cols) < 5:
             continue
 
-        score = score_match.group()
-
-        name_match = re.search(r"[一-龥]{2,4}", text)
-        if not name_match:
+        # 👇 名前（aタグ）を優先取得
+        name_tag = row.find("a")
+        if not name_tag:
             continue
 
-        name = name_match.group()
+        name = name_tag.text.strip()
+
+        # 👇 得点（85.00みたいな数値）を探す
+        score = None
+        for c in cols:
+            txt = c.text.strip()
+            if re.match(r"^\d{2}\.\d{2}$", txt):
+                score = txt
+                break
+
+        if not score:
+            continue
 
         key = (name, score)
 
-        # 👇重複排除
+        # 👇 重複排除
         if key in seen:
             continue
 
         seen.add(key)
         riders.append(key)
-
-    return riders
-
-    # 👇 全行を見る（決め打ちしない）
-    for r in soup.find_all("tr"):
-
-        text = r.get_text(" ", strip=True)
-
-        # 👇 名前っぽい＋得点っぽい行を検出
-        # 得点は「80.00」みたいな形式
-        score_match = re.search(r"\d{2}\.\d{2}", text)
-
-        if not score_match:
-            continue
-
-        score = score_match.group()
-
-        # 👇 名前（日本語2〜4文字）を抽出
-        name_match = re.search(r"[一-龥]{2,4}", text)
-
-        if not name_match:
-            continue
-
-        name = name_match.group()
-
-        riders.append((name, score))
 
     return riders
 
