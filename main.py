@@ -1,18 +1,31 @@
 import requests
 from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+import time
 import os
 
 URL = "https://keirinfrontier.jp/race-detail/20260318/31/2/"
 WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0"
-}
-
 
 def scrape():
-    res = requests.get(URL, headers=HEADERS)
-    soup = BeautifulSoup(res.text, "html.parser")
+
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+
+    driver = webdriver.Chrome(options=options)
+
+    driver.get(URL)
+
+    time.sleep(5)  # ←JS読み込み待ち（重要）
+
+    html = driver.page_source
+    driver.quit()
+
+    soup = BeautifulSoup(html, "html.parser")
 
     riders = []
 
@@ -21,21 +34,14 @@ def scrape():
     for row in rows:
         tds = row.find_all("td")
 
-        # 列数で判定（データ行だけ拾う）
         if len(tds) < 5:
             continue
 
-        # 名前（リンク内）
-        name_tag = row.select_one("a")
-        if not name_tag:
-            continue
+        name = tds[1].text.strip()
 
-        name = name_tag.text.strip()
-
-        # 得点（画像的に3〜4列目あたり）
         try:
             score = tds[2].text.strip()
-            float(score)  # 数値チェック
+            float(score)
         except:
             continue
 
@@ -45,6 +51,7 @@ def scrape():
 
 
 def send_discord(riders):
+
     msg = "🚴 出走表（名前＋得点）\n"
 
     for name, score in riders:
@@ -54,9 +61,10 @@ def send_discord(riders):
 
 
 def main():
+
     riders = scrape()
 
-    print("取得:", riders)
+    print(riders)
 
     if not riders:
         print("取得失敗")
